@@ -115,22 +115,25 @@
 
     <script>
         // ==========================================
-        // VOS CLÉS À REMPLIR ICI (100% Fonctionnel)
+        // VOS CLÉS À REMPLIR ICI
         // ==========================================
-        const JSONBIN_BIN_ID = '6a8720bef5f4af5e292d85fd';         // Exemple: '65e12345a639613100000000'
-        const JSONBIN_API_KEY = '$2a$10$Q9amo17mZT0o74K.a4Fmp.OL/blveMjoI/h2UT.4LIwXqqfVFZ3NG';     // Exemple: '$2a$10$abcdef...'
-        const GROQ_API_KEY     = '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';       // Exemple: 'gsk_...'
+        const JSONBIN_BIN_ID = 'TON_BIN_ID';         
+        const JSONBIN_API_KEY = 'TA_SECRET_KEY';     
+        const GROQ_API_KEY     = 'TA_CLE_GROQ';       
 
         let currentUser = "";
         let classData = [];
 
         // --- GESTION DU PROFIL ---
-        document.getElementById('btnSaveProfile').addEventListener('click', () => {
+        function saveProfile() {
             const name = document.getElementById('setupName').value.trim();
             if (name.length < 2) return alert("Rentre un prénom valide !");
             localStorage.setItem('terminotes_user', name);
-            initApp();
-        });
+            currentUser = name;
+            document.getElementById('displayUserName').innerText = currentUser;
+            document.getElementById('authModal').classList.add('hidden');
+            loadFeed();
+        }
 
         function initApp() {
             currentUser = localStorage.getItem('terminotes_user');
@@ -141,6 +144,12 @@
             } else {
                 document.getElementById('authModal').classList.remove('hidden');
             }
+
+            // Écouteurs d'événements
+            document.getElementById('btnSaveProfile').onclick = saveProfile;
+            document.getElementById('btnPublish').onclick = publishCourse;
+            document.getElementById('btnAI').onclick = generateAI;
+            document.getElementById('fileInput').onchange = handleFileUpload;
         }
 
         // --- BDD : CHARGEMENT DU FLUX ---
@@ -151,7 +160,15 @@
                     headers: { 'X-Master-Key': JSONBIN_API_KEY }
                 });
                 const data = await res.json();
-                classData = Array.isArray(data.record) ? data.record : [];
+                
+                // Gestion de la structure de données JSONBin
+                if (data.record && Array.isArray(data.record.cours)) {
+                    classData = data.record.cours;
+                } else if (Array.isArray(data.record)) {
+                    classData = data.record;
+                } else {
+                    classData = [];
+                }
 
                 feed.innerHTML = '';
                 if (classData.length === 0) {
@@ -163,10 +180,10 @@
                     feed.innerHTML += `
                         <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
                             <div class="flex justify-between items-center text-xs">
-                                <span class="font-bold text-brand-400">${item.user}</span>
-                                <span class="bg-slate-800 text-slate-400 px-2 py-0.5 rounded text-[10px]">${item.subject}</span>
+                                <span class="font-bold text-brand-400">${item.user || 'Anonyme'}</span>
+                                <span class="bg-slate-800 text-slate-400 px-2 py-0.5 rounded text-[10px]">${item.subject || 'Général'}</span>
                             </div>
-                            <p class="text-xs text-slate-300">${item.content}</p>
+                            <p class="text-xs text-slate-300 break-words">${item.content}</p>
                         </div>`;
                 });
             } catch (err) {
@@ -174,8 +191,8 @@
             }
         }
 
-        // --- BDD : PUBLICATION D'UN COURS ---
-        document.getElementById('btnPublish').addEventListener('click', async () => {
+        // --- BDD : PUBLICATION ---
+        async function publishCourse() {
             const subject = document.getElementById('subject').value;
             const content = document.getElementById('courseContent').value.trim();
             if (!content) return alert("Le contenu est vide !");
@@ -193,7 +210,7 @@
                         'Content-Type': 'application/json',
                         'X-Master-Key': JSONBIN_API_KEY
                     },
-                    body: JSON.stringify(classData)
+                    body: JSON.stringify({ cours: classData })
                 });
 
                 document.getElementById('courseContent').value = '';
@@ -204,46 +221,44 @@
                 btn.innerText = "Publier sur le réseau";
                 btn.disabled = false;
             }
-        });
+        }
 
         // --- IA GENERATION ---
-   document.getElementById('btnAI').addEventListener('click', async () => {
-    if (classData.length === 0) return alert("Aucun cours disponible pour l'IA.");
-    const rawContent = classData[classData.length - 1].content;
-    const output = document.getElementById('aiOutput');
-    output.innerText = "Génération de la fiche...";
+        async function generateAI() {
+            if (classData.length === 0) return alert("Aucun cours disponible pour l'IA.");
+            const lastCourse = classData[classData.length - 1].content;
+            const output = document.getElementById('aiOutput');
+            output.innerText = "Génération de la fiche...";
 
-    try {
-        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: { 
-                'Authorization': 'Bearer ' + GROQ_API_KEY, 
-                'Content-Type': 'application/json' 
-            },
-            body: JSON.stringify({
-                model: "llama-3.1-8b-instant",
-                messages: [
-                    { role: "system", content: "Fais une fiche de révision courte et structurée en Markdown." },
-                    { role: "user", content: rawContent }
-                ]
-            })
-        });
+            try {
+                const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': 'Bearer ' + GROQ_API_KEY, 
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify({
+                        model: "llama-3.1-8b-instant",
+                        messages: [
+                            { role: "system", content: "Fais une fiche de révision courte et structurée en Markdown." },
+                            { role: "user", content: lastCourse }
+                        ]
+                    })
+                });
 
-        const data = await res.json();
-        if (data.choices && data.choices[0]) {
-            output.innerHTML = marked.parse(data.choices[0].message.content);
-        } else {
-            console.error(data);
-            output.innerText = "Erreur de réponse de l'IA (clé ou modèle invalide).";
-        }
-    } catch (err) {
-        output.innerText = "Erreur IA.";
-    }
-});
+                const data = await res.json();
+                if (data.choices && data.choices[0]) {
+                    output.innerHTML = marked.parse(data.choices[0].message.content);
+                } else {
+                    output.innerText = "Erreur réponse IA (Vérifie ta clé GROQ).";
+                }
+            } catch (err) {
+                output.innerText = "Erreur IA.";
             }
-        });
+        }
+
         // --- OCR / UPLOAD ---
-        document.getElementById('fileInput').addEventListener('change', async (e) => {
+        async function handleFileUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
             const status = document.getElementById('ocrStatus');
@@ -265,9 +280,6 @@
             } catch (err) {
                 status.innerText = "Erreur d'analyse d'image.";
             }
-        });
+        }
 
         document.addEventListener('DOMContentLoaded', initApp);
-    </script>
-</body>
-</html>
