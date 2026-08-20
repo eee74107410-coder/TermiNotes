@@ -207,35 +207,39 @@
         });
 
         // --- IA GENERATION ---
-        document.getElementById('btnAI').addEventListener('click', async () => {
-            if (classData.length === 0) return alert("Aucun cours disponible pour l'IA.");
-            const lastCourse = classData[classData.length - 1].content;
-            const output = document.getElementById('aiOutput');
-            output.innerText = "Génération de la fiche...";
+   document.getElementById('btnAI').addEventListener('click', async () => {
+    if (classData.length === 0) return alert("Aucun cours disponible pour l'IA.");
+    const rawContent = classData[classData.length - 1].content;
+    const output = document.getElementById('aiOutput');
+    output.innerText = "Génération de la fiche...";
 
-            try {
-                const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                    method: 'POST',
-                    headers: { 
-                        'Authorization': 'Bearer ' + GROQ_API_KEY, 
-                        'Content-Type': 'application/json' 
-                    },
-                    body: JSON.stringify({
-                        model: "llama3-8b-8192",
-                        messages: [
-                            { role: "system", content: "Fais une fiche de révision courte et structurée en Markdown." },
-                            { role: "user", content: lastCourse }
-                        ]
-                    })
-                });
-                const data = await res.json();
-                if (data.choices && data.choices[0]) {
-                    output.innerHTML = marked.parse(data.choices[0].message.content);
-                } else {
-                    output.innerText = "Erreur de réponse de l'IA.";
-                }
-            } catch (err) {
-                output.innerText = "Erreur IA.";
+    try {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 
+                'Authorization': 'Bearer ' + GROQ_API_KEY, 
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({
+                model: "llama-3.1-8b-instant",
+                messages: [
+                    { role: "system", content: "Fais une fiche de révision courte et structurée en Markdown." },
+                    { role: "user", content: rawContent }
+                ]
+            })
+        });
+
+        const data = await res.json();
+        if (data.choices && data.choices[0]) {
+            output.innerHTML = marked.parse(data.choices[0].message.content);
+        } else {
+            console.error(data);
+            output.innerText = "Erreur de réponse de l'IA (clé ou modèle invalide).";
+        }
+    } catch (err) {
+        output.innerText = "Erreur IA.";
+    }
+});
             }
         });
         // --- OCR / UPLOAD ---
