@@ -216,9 +216,12 @@
             try {
                 const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Authorization': 'Bearer ' + GROQ_API_KEY, 
+                        'Content-Type': 'application/json' 
+                    },
                     body: JSON.stringify({
-                        model: "model: "llama3-8b-8192",
+                        model: "llama3-8b-8192",
                         messages: [
                             { role: "system", content: "Fais une fiche de révision courte et structurée en Markdown." },
                             { role: "user", content: lastCourse }
@@ -226,12 +229,15 @@
                     })
                 });
                 const data = await res.json();
-                output.innerHTML = marked.parse(data.choices[0].message.content);
+                if (data.choices && data.choices[0]) {
+                    output.innerHTML = marked.parse(data.choices[0].message.content);
+                } else {
+                    output.innerText = "Erreur de réponse de l'IA.";
+                }
             } catch (err) {
                 output.innerText = "Erreur IA.";
             }
         });
-
         // --- OCR / UPLOAD ---
         document.getElementById('fileInput').addEventListener('change', async (e) => {
             const file = e.target.files[0];
